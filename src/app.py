@@ -20,7 +20,15 @@ current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
 
-DATABASE_PATH = current_dir / "school_activities.db"
+
+def get_database_path() -> Path:
+    configured_path = os.getenv("SCHOOL_DB_PATH")
+    if configured_path:
+        return Path(configured_path).expanduser().resolve()
+    return (current_dir / "school_activities.db").resolve()
+
+
+DATABASE_PATH = get_database_path()
 LATEST_SCHEMA_VERSION = 1
 
 SEED_ACTIVITIES = {
@@ -126,7 +134,10 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
 
     latest_version = conn.execute("PRAGMA user_version").fetchone()[0]
     if latest_version != LATEST_SCHEMA_VERSION:
-        raise RuntimeError("Database schema version mismatch")
+        raise RuntimeError(
+            "Database schema version mismatch: "
+            f"expected {LATEST_SCHEMA_VERSION}, got {latest_version}"
+        )
 
 
 def seed_initial_data(conn: sqlite3.Connection) -> None:
